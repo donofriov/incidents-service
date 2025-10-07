@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Usage: ./bin/release <version>
+
+if [ $# -gt 0 ]; then
+  VERSION="$1"
+elif [ -z "${VERSION:-}" ]; then
+  echo "Usage: $(basename "$0") <version>"
+  exit 1
+fi
+
+IMAGE_NAME="${IMAGE_NAME:-incidents-service}"
+CLUSTER_NAME="${CLUSTER_NAME:-local}"
+BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+VCS_REF="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+
+echo "🚀 Building ${IMAGE_NAME}:${VERSION} (commit: ${VCS_REF})"
+docker build \
+  --build-arg BUILD_DATE="${BUILD_DATE}" \
+  --build-arg VCS_REF="${VCS_REF}" \
+  -t "${IMAGE_NAME}:${VERSION}" .
+
+echo "📦 Loading image into kind cluster '${CLUSTER_NAME}'…"
+kind load docker-image "${IMAGE_NAME}:${VERSION}" --name "${CLUSTER_NAME}"
+
+echo "🎉 Release ${VERSION} built and loaded into kind."

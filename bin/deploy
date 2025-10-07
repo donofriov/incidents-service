@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Usage:
+#   ./bin/deploy <version>
+#   ./bin/deploy            # uses $VERSION if exported
+
+IMAGE_NAME="${IMAGE_NAME:-incidents-service}"
+NAMESPACE="${NAMESPACE:-incidents}"
+CHART_PATH="${CHART_PATH:-./provisioning/k8s}"
+CLUSTER_NAME="${CLUSTER_NAME:-local}"
+LOCAL_PORT="${LOCAL_PORT:-3000}"
+REMOTE_PORT="${REMOTE_PORT:-3000}"
+WAIT_TIMEOUT="${WAIT_TIMEOUT:-180s}"
+
+if [ $# -gt 0 ]; then
+  VERSION="$1"
+elif [ -z "${VERSION:-}" ]; then
+  echo "Usage: $(basename "$0") <version>  (or export VERSION)"
+  exit 1
+fi
+
+FULL_IMAGE="${IMAGE_NAME}:${VERSION}"
+
+echo "🔍 Checking local image ${FULL_IMAGE}…"
+docker image inspect "${FULL_IMAGE}" >/dev/null 2>&1 \
+  || { echo "❌ Local image not found. Build it with: ./bin/release ${VERSION}"; exit 1; }
+
+echo "📡 Deploying ${FULL_IMAGE} with Helm…"
+helm upgrade --install "${IMAGE_NAME}" "${CHART_PATH}" \
+  -n "${NAMESPACE}" --create-namespace \
+  --set image.repository="${IMAGE_NAME}" \
+  --set image.tag="${VERSION}" \
+  --set image.pullPolicy=IfNotPresent
+
+echo "⏳ Waiting for Deployment/${IMAGE_NAME} to become available…"
+kubectl -n "${NAMESPACE}" rollout status deploy/"${IMAGE_NAME}" --timeout="${WAIT_TIMEOUT}"
+kubectl -n "${NAMESPACE}" wait deploy/"${IMAGE_NAME}" --for=condition=Available --timeout="${WAIT_TIMEOUT}"
+
+echo "🔌 Port-forwarding http://127.0.0.1:${LOCAL_PORT} → deploy/${IMAGE_NAME}:${REMOTE_PORT}"
+echo "    (Ctrl-C to stop)"
+exec kubectl -n "${NAMESPACE}" port-forward "deploy/${IMAGE_NAME}" "${LOCAL_PORT}:${REMOTE_PORT}"

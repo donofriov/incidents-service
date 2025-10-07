@@ -1,0 +1,87 @@
+# Ruby
+*.gem
+*.rbc
+/.config
+/coverage/
+/InstalledFiles
+/pkg/
+/spec/reports/
+/spec/examples.txt
+/test/tmp/
+/test/version_tmp/
+/tmp/
+.bundle/
+vendor/bundle
+lib/bundler/man
+.rvmrc
+.rbenv-version
+.ruby-version
+.ruby-gemset
+.env
+.env.local
+*.log
+.byebug_history
+.irb_history
+.yardoc/
+doc/
+.idea/
+.vscode/
+
+# Version Control
+.git/
+.gitignore
+.svn/
+.hg/
+.bzr/
+CVS/
+
+# Editors & IDEs
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Logs & Temporary Files
+logs/
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+.cache/
+*.pid
+*.seed
+*.pid.lock
+
+# Documentation Build
+docs/_build/
+site/
+.jekyll-cache/
+.sass-cache/
+_site/
+Gemfile.lock
+
+# Docker & Kubernetes
+Dockerfile*
+docker-compose*.yml
+docker-compose*.yaml
+.dockerignore
+k8s/
+kubernetes/
+*.kubeconfig
+
+# Secrets & Config
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+config/secrets.yml
+config/database.yml

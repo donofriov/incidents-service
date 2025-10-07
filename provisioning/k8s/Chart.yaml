@@ -1,0 +1,6 @@
+apiVersion: v2
+name: incidents-service
+description: Ruby WEBrick service that reports recent Platogo incidents
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

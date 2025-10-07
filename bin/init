@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Config (override via env)
+TARGET_VERSION="${TARGET_VERSION:-0.1.0}"
+IMAGE_NAME="${IMAGE_NAME:-incidents-service}"
+NAMESPACE="${NAMESPACE:-incidents}"
+RELEASE="${RELEASE:-${IMAGE_NAME}}"
+CLUSTER_NAME="${CLUSTER_NAME:-local}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+INSTALL_KIND="${REPO_ROOT}/provisioning/kind/bin/install-kind"
+CREATE_CLUSTERS="${REPO_ROOT}/provisioning/kind/bin/create-clusters"
+RELEASE_SCRIPT="${REPO_ROOT}/bin/release"
+DEPLOY_SCRIPT="${REPO_ROOT}/bin/deploy"
+
+# --- sanity checks ---
+for cmd in docker kind kubectl helm; do
+  command -v "$cmd" >/dev/null 2>&1 || { echo "❌ $cmd not found in PATH"; exit 1; }
+done
+[ -x "${INSTALL_KIND}" ]   || { echo "❌ ${INSTALL_KIND} not found or not executable"; exit 1; }
+[ -x "${CREATE_CLUSTERS}" ]|| { echo "❌ ${CREATE_CLUSTERS} not found or not executable"; exit 1; }
+[ -x "${RELEASE_SCRIPT}" ] || { echo "❌ ${RELEASE_SCRIPT} not found or not executable"; exit 1; }
+[ -x "${DEPLOY_SCRIPT}" ]  || { echo "❌ ${DEPLOY_SCRIPT} not found or not executable"; exit 1; }
+
+echo "🔧 Ensuring kind + cluster exist (idempotent)…"
+"${INSTALL_KIND}"
+"${CREATE_CLUSTERS}"
+
+echo "🔎 Checking current deployment image…"
+CURRENT_IMAGE="$(kubectl -n "${NAMESPACE}" get deploy "${RELEASE}" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)"
+CURRENT_TAG="${CURRENT_IMAGE##*:}"
+
+if [ -z "${CURRENT_IMAGE}" ]; then
+  echo "📦 No deployment found. Bootstrapping ${RELEASE}:${TARGET_VERSION}…"
+  "${RELEASE_SCRIPT}" "${TARGET_VERSION}"
+  "${DEPLOY_SCRIPT}" "${TARGET_VERSION}"
+  exit 0
+fi
+
+if [ "${CURRENT_TAG}" = "${TARGET_VERSION}" ]; then
+  echo "✅ ${RELEASE} is already at ${TARGET_VERSION}. Nothing to do."
+  exit 0
+fi
+
+echo "ℹ️ ${RELEASE} is running ${CURRENT_TAG}, not ${TARGET_VERSION}. Not downgrading."
+echo "👉 To build a new release:         ${REPO_ROOT}/bin/release <version>"
+echo "👉 To deploy an existing tag:      ${REPO_ROOT}/bin/deploy  <version>"
+echo "👉 To release and deploy:          ${REPO_ROOT}/bin/deliver <version>"

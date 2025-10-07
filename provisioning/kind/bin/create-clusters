@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Usage:
+#   ./create-clusters [--force]
+#
+# Flags:
+#   --force    Delete & recreate clusters if they already exist
+#   FORCE=true ./create-clusters  (env var alternative)
+
+FORCE="${FORCE:-false}"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --force|-f) FORCE=true ;;
+    -h|--help)
+      echo "Usage: $(basename "$0") [--force]"
+      exit 0
+      ;;
+    *) echo "Unknown option: $1" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLUSTERS_DIR="${SCRIPT_DIR}/../clusters"
+
+if [ ! -d "$CLUSTERS_DIR" ]; then
+  echo "❌ ERROR: clusters directory not found at: $CLUSTERS_DIR" >&2
+  exit 1
+fi
+
+# Collect existing cluster names (fallback to empty list if kind not installed)
+EXISTING_CLUSTERS="$(kind get clusters 2>/dev/null || true)"
+
+created=""
+skipped=""
+failed=""
+
+# Helper to check if a name is in the existing cluster list
+cluster_exists() {
+  echo "$EXISTING_CLUSTERS" | grep -qx "$1"
+}
+
+# Extract cluster name from config (defaults to "kind" if none)
+get_cluster_name() {
+  if command -v yq >/dev/null 2>&1; then
+    yq -r '.name // ""' "$1"
+  else
+    # quick regex fallback
+    sed -n 's/^[[:space:]]*name:[[:space:]]*\([^[:space:]#]*\).*/\1/p' "$1" | head -n1
+  fi
+}
+
+# Main loop
+for cluster_cfg in "$CLUSTERS_DIR"/*; do
+  [ -f "$cluster_cfg" ] || continue
+
+  echo "==> Processing config: $cluster_cfg"
+
+  name="$(get_cluster_name "$cluster_cfg" || true)"
+  [ -n "$name" ] || name="kind"
+
+  # Refresh existing cluster list each time
+  EXISTING_CLUSTERS="$(kind get clusters 2>/dev/null || true)"
+
+  if cluster_exists "$name"; then
+    if [ "$FORCE" = "true" ]; then
+      echo "   Cluster '$name' already exists. Deleting due to --force..."
+      if ! kind delete cluster --name "$name" >/dev/null 2>&1; then
+        echo "   ⚠️  Failed to delete cluster '$name', continuing..."
+      fi
+    else
+      echo "   ⚠️  Cluster '$name' already exists. Skipping (use --force to recreate)."
+      skipped="$skipped $name"
+      continue
+    fi
+  fi
+
+  echo "   Creating cluster '$name'..."
+  if output="$(kind create cluster --config "$cluster_cfg" 2>&1)"; then
+    echo "   ✅ Created cluster '$name'"
+    created="$created $name"
+  else
+    # Common “already exists” message — treat gracefully
+    if echo "$output" | grep -qi 'node(s) already exist'; then
+      echo "   ⚠️  Cluster '$name' already exists (nodes present). Skipping."
+      skipped="$skipped $name"
+    else
+      echo "   ❌ Failed to create cluster '$name':"
+      echo "$output" >&2
+      failed="$failed $name"
+    fi
+  fi
+done
+
+echo
+echo "===== Summary ====="
+[ -n "$created" ] && echo "Created:${created}"
+[ -n "$skipped" ] && echo "Skipped:${skipped}"
+[ -n "$failed" ]  && echo "Failed:${failed}"
+
+[ -n "$failed" ] && exit 1 || echo "All done!"

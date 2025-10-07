@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Usage:
+#   ./bin/deliver <version>
+#   ./bin/deliver                # uses $VERSION if exported (e.g., from bin/release or bin/deploy)
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+if [ $# -gt 0 ]; then
+  VERSION="$1"
+elif [ -z "${VERSION:-}" ]; then
+  echo "❌ No version provided."
+  echo "Usage: $(basename "$0") <version>"
+  echo "   or export VERSION=<version> before running."
+  exit 1
+fi
+
+echo "🚚 Delivering version ${VERSION} to local cluster…"
+
+"${REPO_ROOT}/bin/release" "${VERSION}"
+"${REPO_ROOT}/bin/deploy" "${VERSION}"

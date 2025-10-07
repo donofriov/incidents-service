@@ -1,0 +1,115 @@
+# incidents-service
+
+## Task 1 / Task 2
+
+Run the init script to setup the entire service is a local kind kubernetes cluster:
+
+```bash
+bin/init
+```
+
+To update environment variables, edit the `envVars` object (map) in `provisioning/k8s/values.yaml`
+
+To update incidents, edit the `incidents` array (sequence) in `provisioning/k8s/values.yaml`
+
+If application code as well as chart code was changed, run:
+
+```bash
+bin/deliver 0.2.0
+```
+
+Where `0.2.0` is the next release version (using semantic versioning, select the applicable major, minor, patch version based on what changed). This script will generate a new release and deploy it to the cluster.
+
+If only the chart values changed, run:
+
+```bash
+bin/deploy 0.1.0
+```
+
+Where `0.1.0` is the currently deploy release version. This will update the chart values without having to rebuild the docker image.
+
+## Task 3
+
+What is needed to achieve high availability during restarts and reschedulings for this
+application with Kubernetes?
+
+I'd deploy it as a StatefulSet with PersistentVolumes fronted by a headless service for peer discovery and a gRPC ingress for clients. Each replica would run on a separate node using anti-affinity and would be protected by a PodDisruptionBudget ensuring at least two nodes always stay up.
+
+I'd add graceful termination hooks so Erlang nodes leave the ring cleanly, use readiness probes that confirm cluster membership before serving traffic and OrderedReady rolling updates so only one pod restarts at a time.
+
+Together these ensure that during restarts or maintenance, the cluster remains available and consistent with Dynamo's guarantees.
+
+## Task 4
+
+How
+can we achieve this? What would be required of the external company?
+
+I'd use AWS PrivateLink. We'd need to create a VPC Endpoint Service pointing at the NLB, update it to add the allowed principle which would be arn:aws:iam::<EXTERNAL_ACCOUNT_ID>:root, then share the service name with the external company as well as availability zone ids to avoid cross-AZ data charges.
+
+The external company would need create interface endpoints in each AZ they want, then accept the vpc endpoint connection using our service id and their vpc endpoint ids. They could create a CNAME record if desired.
+
+## Task 5
+
+One of your colleagues wants to automate one of his daily tasks and wrote a
+simple JavaScript script that calls an external API at 9:00. They ask you if
+you can deploy this script "somewhere into our infrastructure" so they don't
+have to run in manually from their computer anymore.
+
+The script doesn't have any dependencies but includes an API access token which
+needs to be rotated once a year.
+
+Would you leverage one of our existing infrastructure providers (AWS,
+Kubernetes, Cloudflare) or something else that you're familiar with and that
+fits the purpose and is pragmatic?
+
+The quickest/easiest way I'd implement this would be in GitHub Actions. An alternative would be AWS Lambda/EventBridge Scheduler/Secrets Manager which could be more production ready but is more moving parts.
+
+Example GHA Workflow
+
+`.github/workflows/daily-api-job.yml`
+
+```yaml
+name: Daily API Job (09:00 Vienna)
+
+on:
+  # Manual trigger for testing
+  workflow_dispatch: {}
+
+  # NOTE: GitHub Actions cron uses UTC (no timezone support).
+  # Vienna time is:
+  # - CET (UTC+1) in winter → 08:00 UTC == 09:00 Vienna
+  # - CEST (UTC+2) in summer → 07:00 UTC == 09:00 Vienna
+  schedule:
+    # Winter months (Jan–Mar, Nov–Dec) @ 08:00 UTC
+    - cron: "0 8 * 1-3,11-12 *"
+    # Summer months (Apr–Oct) @ 07:00 UTC
+    - cron: "0 7 * 4-10 *"
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: daily-api-job
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Run daily script
+        env:
+          # Create in repo/org secrets and rotate annually
+          # Preferred to be managed by Terraform over clickops in GitHub console
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        run: |
+          const tokenPresent = Boolean(process.env.API_TOKEN);
+          console.log(`[${new Date().toISOString()}] Process has been completed. Secret loaded: ${tokenPresent}`);
+          process.exit(0);
+```

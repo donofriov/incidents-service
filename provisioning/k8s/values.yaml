@@ -1,0 +1,66 @@
+replicaCount: 1
+
+envVars:
+  DAYS_SINCE_THE_LAST_INCIDENT: "0"
+  PORT: "3000"
+
+incidents:
+  - date: "2024-10-01"
+    message: AWS network outage
+  - date: "2024-10-16"
+    message: VSWH certificate expired
+  - date: "2024-10-18"
+    message: Database disk full
+  - date: "2025-06-02"
+    message: Application memory leak (chart only change test)
+  - date: "2025-06-10"
+    message: Application memory leak resolved (docker image and chart change test)
+  - date: "2025-10-02"
+    message: Application security vulnerability (chart change)
+
+image:
+  repository: incidents-service
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  container:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+livenessProbe:
+  path: /
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+readinessProbe:
+  path: /
+  initialDelaySeconds: 2
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3

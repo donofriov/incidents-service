@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+FORCE="${FORCE:-false}"
+KIND_VERSION="${KIND_VERSION:-}"   # optional, e.g. KIND_VERSION=0.30.0
+
+# ---- parse args (before any checks) ----
+while (($#)); do
+  case "$1" in
+    -f|--force) FORCE=true ;;
+    -h|--help)
+      cat <<EOF
+Usage: $(basename "$0") [--force|-f]
+Options:
+  -f, --force     Reinstall even if kind is already installed
+Env:
+  FORCE=true      Same as --force
+  KIND_VERSION=x  Install specific version (e.g. 0.30.0). Defaults to latest.
+EOF
+      exit 0
+      ;;
+    *) echo "Unknown arg: $1" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+# ---- early exit if installed and not forcing ----
+if command -v kind >/dev/null 2>&1 && [[ "$FORCE" != "true" ]]; then
+  echo "✅ kind is already installed: $(kind version)"
+  echo "Use --force or FORCE=true to reinstall."
+  exit 0
+fi
+[[ "$FORCE" == "true" ]] && echo "🔄 Forcing (re)install of kind..."
+
+# ---- detect OS/arch ----
+OS="$(uname -s)"
+ARCH="$(uname -m)"
+case "$OS" in
+  Linux*)  PLATFORM="linux" ;;
+  Darwin*) PLATFORM="darwin" ;;
+  MINGW*|MSYS*|CYGWIN*|Windows_NT) PLATFORM="windows" ;;
+  *) echo "❌ Unsupported OS: $OS" >&2; exit 1 ;;
+esac
+case "$ARCH" in
+  x86_64|amd64) ARCH="amd64" ;;
+  aarch64|arm64) ARCH="arm64" ;;
+  *) echo "❌ Unsupported architecture: $ARCH" >&2; exit 1 ;;
+esac
+
+# ---- figure out version ----
+if [[ -z "$KIND_VERSION" ]]; then
+  KIND_VERSION="$(curl -fsSL https://api.github.com/repos/kubernetes-sigs/kind/releases/latest \
+    | grep -Eo '"tag_name":[[:space:]]*"v?[^"]+"' | sed -E 's/.*"v?([^"]+)".*/\1/')"
+fi
+[[ -n "$KIND_VERSION" ]] || { echo "❌ Could not determine kind version"; exit 1; }
+
+echo "➡️  Installing kind v$KIND_VERSION for $PLATFORM-$ARCH"
+
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+cd "$TMP_DIR"
+
+if [[ "$PLATFORM" == "windows" ]]; then
+  FILE="kind-windows-amd64.exe"
+  URL="https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/${FILE}"
+  curl -fL -o kind.exe "$URL"
+  chmod +x kind.exe
+  mv kind.exe /usr/local/bin/kind.exe 2>/dev/null || mv kind.exe "$OLDPWD/"
+else
+  FILE="kind-${PLATFORM}-${ARCH}"
+  URL="https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/${FILE}"
+  curl -fL -o kind "$URL"
+  chmod +x kind
+  sudo mv kind /usr/local/bin/kind 2>/dev/null || mv kind "$OLDPWD/"
+fi
+
+echo "✅ kind v${KIND_VERSION} installed successfully!"
+kind version

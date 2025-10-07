@@ -1,0 +1,11 @@
+incidents:
+  - date: "2024-10-01"
+    message: AWS network outage
+  - date: "2024-10-16"
+    message: VSWH certificate expired
+  - date: "2024-10-18"
+    message: Database disk full
+  - date: "2025-01-15"
+    message: Example local app/docker incident
+  - date: "2025-10-02"
+    message: default incidents live in this file

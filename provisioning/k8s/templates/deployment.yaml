@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "incidents-service.fullname" . }}
+  labels:
+    {{- include "incidents-service.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ include "incidents-service.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "incidents-service.fullname" . }}
+        {{- include "incidents-service.labels" . | nindent 8 }}
+      annotations:
+        checksum/config-env: {{ include (print $.Template.BasePath "/configmap-env.yaml") . | sha256sum }}
+        checksum/config-incidents: {{ include (print $.Template.BasePath "/configmap-incidents.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: web
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort | default 3000 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "incidents-service.fullname" . }}-env
+          volumeMounts:
+            - name: incidents-file
+              mountPath: /app/incidents.yaml
+              subPath: incidents.yaml
+              readOnly: true
+          readinessProbe:
+            httpGet: { path: "/", port: http }
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: "/", port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+      volumes:
+        - name: incidents-file
+          configMap:
+            name: {{ include "incidents-service.fullname" . }}-file
+            items:
+              - key: incidents.yaml
+                path: incidents.yaml
