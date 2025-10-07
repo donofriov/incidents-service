@@ -50,16 +50,4 @@ The external company would need create interface endpoints in each AZ they want,
 
 ## Task 5
 
-One of your colleagues wants to automate one of his daily tasks and wrote a
-simple JavaScript script that calls an external API at 9:00. They ask you if
-you can deploy this script "somewhere into our infrastructure" so they don't
-have to run in manually from their computer anymore.
-
-The script doesn't have any dependencies but includes an API access token which
-needs to be rotated once a year.
-
-Would you leverage one of our existing infrastructure providers (AWS,
-Kubernetes, Cloudflare) or something else that you're familiar with and that
-fits the purpose and is pragmatic?
-
 The quickest/easiest way I'd implement this would be in GitHub Actions. An alternative would be AWS Lambda/EventBridge Scheduler/Secrets Manager which could be more production ready but is more moving parts.

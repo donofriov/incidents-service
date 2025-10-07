@@ -39,6 +39,8 @@ jobs:
           # Preferred to be managed by Terraform over clickops in GitHub console
           API_TOKEN: ${{ secrets.API_TOKEN }}
         run: |
+          node - <<'NODE'
           const tokenPresent = Boolean(process.env.API_TOKEN);
           console.log(`[${new Date().toISOString()}] Process has been completed. Secret loaded: ${tokenPresent}`);
           process.exit(0);
+          NODE
