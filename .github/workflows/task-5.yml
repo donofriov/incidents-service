@@ -1,0 +1,44 @@
+name: Daily API Job (09:00 Vienna)
+
+on:
+  # Manual trigger for testing
+  workflow_dispatch: {}
+
+  # NOTE: GitHub Actions cron uses UTC (no timezone support).
+  # Vienna time is:
+  # - CET (UTC+1) in winter → 08:00 UTC == 09:00 Vienna
+  # - CEST (UTC+2) in summer → 07:00 UTC == 09:00 Vienna
+  # Commenting out the schedule so I don't get charged for running this workflow daily
+  # schedule:
+    # Winter months (Jan–Mar, Nov–Dec) @ 08:00 UTC
+    # - cron: "0 8 * 1-3,11-12 *"
+    # Summer months (Apr–Oct) @ 07:00 UTC
+    # - cron: "0 7 * 4-10 *"
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: daily-api-job
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Run daily script
+        env:
+          # Create in repo/org secrets and rotate annually
+          # Preferred to be managed by Terraform over clickops in GitHub console
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+        run: |
+          const tokenPresent = Boolean(process.env.API_TOKEN);
+          console.log(`[${new Date().toISOString()}] Process has been completed. Secret loaded: ${tokenPresent}`);
+          process.exit(0);
