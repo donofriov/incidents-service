@@ -16,15 +16,6 @@ CREATE_CLUSTERS="${REPO_ROOT}/provisioning/kind/bin/create-clusters"
 RELEASE_SCRIPT="${REPO_ROOT}/bin/release"
 DEPLOY_SCRIPT="${REPO_ROOT}/bin/deploy"
 
-# --- sanity checks ---
-for cmd in docker kind kubectl helm; do
-  command -v "$cmd" >/dev/null 2>&1 || { echo "❌ $cmd not found in PATH"; exit 1; }
-done
-[ -x "${INSTALL_KIND}" ]   || { echo "❌ ${INSTALL_KIND} not found or not executable"; exit 1; }
-[ -x "${CREATE_CLUSTERS}" ]|| { echo "❌ ${CREATE_CLUSTERS} not found or not executable"; exit 1; }
-[ -x "${RELEASE_SCRIPT}" ] || { echo "❌ ${RELEASE_SCRIPT} not found or not executable"; exit 1; }
-[ -x "${DEPLOY_SCRIPT}" ]  || { echo "❌ ${DEPLOY_SCRIPT} not found or not executable"; exit 1; }
-
 echo "🔧 Ensuring kind + cluster exist (idempotent)…"
 "${INSTALL_KIND}"
 "${CREATE_CLUSTERS}"

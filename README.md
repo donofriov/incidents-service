@@ -4,6 +4,8 @@
 
 Run the init script to setup the entire service is a local kind kubernetes cluster:
 
+> Note: Assumes docker, kubectl, and helm are installed on your machine. Kind will be installed as part of the init script if it doesn't exist.
+
 ```bash
 git clone https://github.com/donofriov/incidents-service.git
 cd incidents-service
