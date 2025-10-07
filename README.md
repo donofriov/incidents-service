@@ -5,6 +5,8 @@
 Run the init script to setup the entire service is a local kind kubernetes cluster:
 
 ```bash
+git clone https://github.com/donofriov/incidents-service.git
+cd incidents-service
 bin/init
 ```
 
