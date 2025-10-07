@@ -51,3 +51,5 @@ The external company would need create interface endpoints in each AZ they want,
 ## Task 5
 
 The quickest/easiest way I'd implement this would be in GitHub Actions. An alternative would be AWS Lambda/EventBridge Scheduler/Secrets Manager which could be more production ready but is more moving parts.
+
+See workflow [code](https://github.com/donofriov/incidents-service/blob/2e21c00ae09df284384033557ceeb377e3793ee4/.github/workflows/task-5.yml) and [run](https://github.com/donofriov/incidents-service/actions/runs/18325256626)
