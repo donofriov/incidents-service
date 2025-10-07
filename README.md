@@ -10,9 +10,9 @@ cd incidents-service
 bin/init
 ```
 
-To update environment variables, edit the `envVars` object (map) in `provisioning/k8s/values.yaml`
+To update environment variables, edit the [`envVars` object (map) in `provisioning/k8s/values.yaml`](https://github.com/donofriov/incidents-service/blob/08a6724a34ea5d491176d334ebda53a4c3a8b5fd/provisioning/k8s/values.yaml#L3-L5)
 
-To update incidents, edit the `incidents` array (sequence) in `provisioning/k8s/values.yaml`
+To update incidents, edit the [`incidents` array (sequence) in `provisioning/k8s/values.yaml`](https://github.com/donofriov/incidents-service/blob/08a6724a34ea5d491176d334ebda53a4c3a8b5fd/provisioning/k8s/values.yaml#L7-L19)
 
 If application code as well as chart code was changed, run:
 
@@ -29,6 +29,20 @@ bin/deploy 0.1.0
 ```
 
 Where `0.1.0` is the currently deploy release version. This will update the chart values without having to rebuild the docker image.
+
+The app can be run also be run directly on your machine:
+
+```bash
+cd app/
+bundle install
+ruby incidents.rb
+```
+
+Or in a docker container:
+
+```bash
+docker run --rm -p 3000:3000 incidents-service:0.1.0
+```
 
 ## Task 3
 
