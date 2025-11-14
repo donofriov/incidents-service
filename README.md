@@ -1,6 +1,6 @@
 # incidents-service
 
-testing git push main
+testing git push main -- if the commit was already before the branch protection, is it still allowed to be pushed?
 
 ## Task 1 / Task 2
 
